@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.23.3"
+__generated_with = "0.23.5"
 app = marimo.App(width="medium")
 
 
@@ -138,18 +138,26 @@ def _(match_wise_matching_df, mo, usable_dset1):
         (usable_dset1['Net P/L'] > 0).sum() / _matches * 100
     )
     _avg_c_rank = round(match_wise_matching_df['c_rank'].mean(), 1)
+    _avg_vc_rank = round(match_wise_matching_df['vc_rank'].mean(), 1)
     _c_in_dt_pct = round(match_wise_matching_df['c_in_dt'].mean() * 100)
+    _avg_cost_per_match = round(usable_dset1['Total cost'].mean())
+    _total_points_missed = int(
+        match_wise_matching_df['dt_vc_points'].sum() - match_wise_matching_df['my_vc_points'].sum()
+    )
 
 
     mo.vstack([
         mo.hstack([
             mo.stat(value=f"₹{_total_cost:,}", label="Total invested", caption="across all matches"),
-            mo.stat(value=f"₹{_net_pl:,}", label="Net P/L", caption="overall season result", bordered=True),
+            mo.stat(value=f"₹{_net_pl:,}", label="Net P/L", caption="overall season result", bordered=False),
+            mo.stat(value=f"₹{_avg_cost_per_match}", 
+            label="Avg Cost per Match", 
+            caption="mean investment per match"),
             # mo.stat(value=str(_matches), label="Matches played", caption="with at least one team"),
             # mo.stat(value=f"{_pct_profitable}%", label="Profitable matches", caption="of total matches played"),
             # mo.stat(value=str(_avg_c_rank), label="Avg captain rank", caption="1 = match top scorer"),
             # mo.stat(value=f"{_c_in_dt_pct}%", label="Captain in Dream Team", caption="of matches"),
-        ], justify='space-around'),
+        ], align='start', justify='space-between', gap=2),
 
         mo.hstack([
             # mo.stat(value=f"₹{_total_cost:,}", label="Total invested", caption="across all matches"),
@@ -158,8 +166,16 @@ def _(match_wise_matching_df, mo, usable_dset1):
             mo.stat(value=f"{_pct_profitable}%", label="Profitable matches", caption="of total matches played"),
             # mo.stat(value=str(_avg_c_rank), label="Avg captain rank", caption="1 = match top scorer"),
             # mo.stat(value=f"{_c_in_dt_pct}%", label="Captain in Dream Team", caption="of matches"),
-        ], justify='space-around')
-    ])
+        ], align='start', justify='space-between', gap=1),
+        mo.hstack([
+            mo.stat(value=f"{_avg_c_rank}", 
+            label="Avg Captain Rank", 
+            caption="1 = match top scorer"),
+            mo.stat(value=f"{_avg_vc_rank}", 
+            label="Avg VC Rank", 
+            caption="2 = ideal VC rank")
+        ], align='start', justify='space-between', gap=1)
+    ], align='start', heights='equal')
     return
 
 
@@ -229,6 +245,16 @@ def _(pd, usable_dset1):
 
 
 @app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Merging Player-level performance data with match decision data to evaluate realised outcomes against optimal outcomes.
+
+    Calculating effective points using Captain (2x) and Vice-Captain (1.5x) multipliers to measure the true impact of C/VC decisions and assess the selections against the Dream Team.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
 def _(usable_dset2, usable_dset3):
     # Merging player-level data with decision data to analyze selection choice and C/VC choices
 
@@ -250,6 +276,20 @@ def _(usable_dset2, usable_dset3):
         merged_usable_d2d3['TeamID'].str.contains('DT')
     ].reset_index(drop=True)
     return merged_usable_d2d3_dt, merged_usable_d2d3_myTeams
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Team selection performance was benchmarked against the Dream Team (DT) for each match.
+
+    The Dream Team represents the optimal post-match team composition and consists of the top 11 players with highest fantasy points from that match. The highest-scoring player is assigned as Dream Team Captain (2x multiplier), while the second-highest scorer is assigned as Dream Team Vice-Captain (1.5x multiplier).
+
+    For matches where multiple team combinations were created, only the best-performing team was selected for analysis. The selected team was determined based on maximum overlap with the Dream Team in terms of points.
+
+    Captain (C) and Vice-Captain (VC) selections were also benchmarked against the Dream Team C/VC choices to evaluate C/VC decision effectiveness.
+    """)
+    return
 
 
 @app.cell(hide_code=True)
@@ -435,6 +475,41 @@ def _(
         match_wise_matching_df[f'{_col}_role'] = match_wise_matching_df[_col].map(role_team_map['Role'])
         match_wise_matching_df[f'{_col}_team'] = match_wise_matching_df[_col].map(role_team_map['Team'])
     return (match_wise_matching_df,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    A custom metric, **Selection Efficiency Index (SEI)**, was created to evaluate how effectively player points were captured relative to their popularity with other participating users.
+
+    The metric combines:
+    - how frequently a player was selected by me
+    - the player’s global selection percentage
+    - the proportion of the player’s total points that were actually collected
+
+    $$SEI = \frac{\text{user\_sel\_freq}}{\text{global\_sel\_pct}} \times \frac{\text{points\_earned\_pct}}{100}$$
+
+    Higher SEI indicates:
+    - stronger conviction relative to crowd behavior
+    - better collection of player's points
+
+    Lower SEI indicates:
+    - under-selection of valuable players
+    - poor point capture despite player popularity or performance
+
+
+    #### Interpretation
+
+    - **SEI ≈ 1.0**
+      - Selection behavior broadly aligned with crowd popularity while collecting a reasonable share of player points
+
+    - **Low SEI (< 0.5)**
+      - Indicates missed value - players were either under-selected or a low proportion of their points was collected
+
+    - **High SEI (> 1.3)**
+      - Indicates successful differentiation - players were selected more aggressively than the crowd while also collecting most of their points
+    """)
+    return
 
 
 @app.cell(hide_code=True)
