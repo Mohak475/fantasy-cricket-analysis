@@ -154,3 +154,7 @@ fantasy-cricket-analysis/
 ---
 
 *This project demonstrates the ability to take a self-defined analytical question from raw data collection through to structured insight delivery — combining technical implementation with domain reasoning and clear communication of findings.*
+
+---
+
+*This README was generated with the assistance of AI (Claude by Anthropic).*
